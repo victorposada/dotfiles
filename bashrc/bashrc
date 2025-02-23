@@ -1,0 +1,55 @@
+# .bashrc
+
+if [ -f /etc/bashrc ]; then
+    . /etc/bashrc
+fi
+
+if ! [[ "$PATH" =~ "$HOME/.local/bin:$HOME/bin:" ]]; then
+    PATH="$HOME/.local/bin:$HOME/bin:$PATH"
+fi
+export PATH
+
+if [ -d ~/.bashrc.d ]; then
+    for rc in ~/.bashrc.d/*; do
+        if [ -f "$rc" ]; then
+            . "$rc"
+        fi
+    done
+fi
+unset rc
+
+parse_git_branch() {
+  git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/ [\1]/'
+}
+
+k8s_info() {
+  #kubectl config view --minify --output 'jsonpath={..namespace}@{.current-context}' 2> /dev/null
+  kubectl config current-context
+}
+
+## Customizations
+PS1="\[\e[1;92m\]\w\[\e[33m\]\$(parse_git_branch) \[\e[01;92m\](\$(k8s_info))  🍃\[\e[01;34m\] "
+
+. "$HOME/.cargo/env"
+
+RED='\033[0;31m'
+ORANGE='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+if [ -n "${AWS_VAULT}" ] ;
+then
+    function aws_sts_seconds_remaining {
+        [ -z ${AWS_SESSION_EXPIRATION} ] &&  t=${AWS_CREDENTIAL_EXPIRATION}  || t=${AWS_SESSION_EXPIRATION}
+        a=$(date -d "$t" +%s)
+        b=$(date --utc +%s)
+        c="$((($a - $b) / 60))"
+        date -d@$c -u +%M:%S
+    }
+    export PS1="${RED}($(aws_sts_seconds_remaining)) ${PS1}";
+fi
+
+if command -v tmux &> /dev/null && [ -n "$PS1" ] && [[ ! "$TERM" =~ screen ]] && [[ ! "$TERM" =~ tmux ]] && [ -z "$TMUX" ]; then
+    tmux
+fi
+
